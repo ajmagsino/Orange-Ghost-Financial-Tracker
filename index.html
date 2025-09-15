@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orange Ghost Studios - Financial Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            min-height: 100vh; padding: 20px;
+        }
+        .auth-container {
+            max-width: 400px; margin: 50px auto; background: white;
+            border-radius: 15px; padding: 40px; box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .container {
+            max-width: 1400px; margin: 0 auto; background: white;
+            border-radius: 15px; box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden; display: none;
+        }
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white; padding: 30px; text-align: center; position: relative;
+            display: flex; align-items: center; justify-content: center; gap: 20px;
+        }
+        .logo-text {
+            font-size: 2.5em; font-weight: bold; color: #ff6b35;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .ghost-icon { font-size: 3em; margin-right: 15px; }
+        .subtitle {
+            font-size: 1.1em; opacity: 0.9; margin-top: 5px; color: #ecf0f1;
+        }
+        .user-info { 
+            position: absolute; top: 20px; right: 30px; text-align: right; 
+            background: rgba(0,0,0,0.2); padding: 10px 15px; border-radius: 10px;
+        }
+        .logout-btn {
+            background: #ff6b35; color: white; border: none;
+            padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-top: 10px;
+        }
+        .dashboard {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px; padding: 30px; background: #f8f9fa;
+        }
+        .metric-card {
+            background: white; padding: 25px; border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08); text-align: center;
+        }
+        .metric-value { font-size: 2em; font-weight: bold; margin-bottom: 5px; }
+        .revenue { color: #27ae60; } .expenses { color: #e74c3c; }
+        .profit { color: #3498db; } .capital { color: #ff6b35; }
+        .content { padding: 30px; }
+        .section {
+            margin-bottom: 40px; background: white; border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05); overflow: hidden;
+        }
+        .section-header {
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            color: white; padding: 20px 30px; font-size: 1.3em; font-weight: bold;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #ecf0f1; }
+        th { background: #f8f9fa; font-weight: 600; color: #2c3e50; }
+        input, select {
+            width: 100%; padding: 8px 12px; border: 2px solid #ecf0f1;
+            border-radius: 5px; font-size: 14px;
+        }
+        .add-row-btn {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white; border: none; padding: 12px 25px; border-radius: 25px;
+            font-size: 16px; cursor: pointer; margin: 20px 30px;
+        }
+        .delete-btn {
+            background: #e74c3c; color: white; border: none;
+            padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px;
+        }
+        .readonly-notice {
+            background: #f39c12; color: white; padding: 15px; margin: 20px;
+            border-radius: 8px; text-align: center; font-weight: bold;
+        }
+        .auth-form input { padding: 12px; margin-bottom: 15px; }
+        .auth-btn {
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            color: white; border: none; padding: 12px 30px; border-radius: 25px;
+            font-size: 16px; cursor: pointer; width: 100%;
+        }
+        .error-message { color: #e74c3c; margin-top: 10px; text-align: center; }
+        .role-badge { background: #3498db; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; }
+        .role-badge.admin { background: #ff6b35; }
+        .rate-info {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white; padding: 20px; margin: 20px; border-radius: 10px; font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container" id="authContainer">
+        <div style="margin-bottom: 30px;">
+            <span class="ghost-icon">👻</span>
+            <div style="font-size: 1.8em; font-weight: bold; color: #ff6b35; margin-bottom: 5px;">
+                ORANGE GHOST STUDIOS
+            </div>
+            <div style="color: #666; font-size: 0.9em;">Band Rehearsal & Recording Studio</div>
+        </div>
+        <h3 style="margin-bottom: 20px; color: #ff6b35;">Financial Tracker Login</h3>
+        <form class="auth-form" id="loginForm">
+            <input type="email" id="email" placeholder="Enter your email" required>
+            <input type="password" id="password" placeholder="Enter your password" required>
+            <button type="submit" class="auth-btn">Sign In</button>
+        </form>
+        <div class="error-message" id="errorMessage"></div>
+        <p style="margin-top: 20px; color: #7f8c8d; font-size: 14px;">
+            Contact AJ Magsino or Alecks Macaspac for account setup.
+        </p>
+    </div>
+
+    <div class="container" id="appContainer">
+        <div class="header">
+            <div class="user-info" id="userInfo">
+                <div id="userEmail"></div>
+                <div><span class="role-badge" id="userRole"></span></div>
+                <button class="logout-btn" onclick="signOut()">Logout</button>
+            </div>
+            <div style="display: flex; align-items: center;">
+                <span class="ghost-icon">👻</span>
+                <div>
+                    <div class="logo-text">ORANGE GHOST STUDIOS</div>
+                    <div class="subtitle">Band Rehearsal & Recording Studio - Financial Tracker</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="readonly-notice" id="readonlyNotice" style="display: none;">
+            📖 You have read-only access. Contact AJ Magsino or Alecks Macaspac for data changes.
+        </div>
+        
+        <div class="rate-info">
+            <strong>Current Rates:</strong> Rehearsal - ₱350.00/hour | Recording - TBD
+        </div>
+        
+        <div class="dashboard">
+            <div class="metric-card"><h3>Total Paid-Up Capital</h3><div class="metric-value capital" id="totalPaidCapital">₱0.00</div></div>
+            <div class="metric-card"><h3>Total Revenue</h3><div class="metric-value revenue" id="totalRevenue">₱0.00</div></div>
+            <div class="metric-card"><h3>Total Expenses</h3><div class="metric-value expenses" id="totalExpenses">₱0.00</div></div>
+            <div class="metric-card"><h3>Cash on Hand</h3><div class="metric-value profit" id="cashOnHand">₱0.00</div></div>
+            <div class="metric-card"><h3>Business Reinvestment (50%)</h3><div class="metric-value capital" id="businessReinvestment">₱0.00</div></div>
+            <div class="metric-card"><h3>Investor Distribution (50%)</h3><div class="metric-value revenue" id="investorDistribution">₱0.00</div></div>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <div class="section-header">💰 Investor Paid-Up Capital</div>
+                <table id="capitalTable">
+                    <thead><tr><th>Investor</th><th>Date</th><th>Amount (₱)</th><th>Method</th><th>Notes</th><th>Action</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+                <button class="add-row-btn" onclick="showCapitalForm()" id="addCapitalBtn">+ Add Capital Investment</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-header">🎸 Revenue & Income</div>
+                <table id="revenueTable">
+                    <thead><tr><th>Date</th><th>Service</th><th>Client</th><th>Hours</th><th>Rate (₱)</th><th>Total (₱)</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+                <button class="add-row-btn" onclick="showRevenueForm()" id="addRevenueBtn">+ Add Revenue Entry</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-header">🎛️ Equipment Expenses</div>
+                <table id="equipmentTable">
+                    <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Vendor</th><th>Amount (₱)</th><th>Warranty</th><th>Action</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+                <button class="add-row-btn" onclick="showEquipmentForm()" id="addEquipmentBtn">+ Add Equipment Expense</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-header">⚙️ Operational Expenses</div>
+                <table id="operationalTable">
+                    <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Amount (₱)</th><th>Frequency</th><th>Due Date</th><th>Action</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+                <button class="add-row-btn" onclick="showOperationalForm()" id="addOperationalBtn">+ Add Operational Expense</button>
+            </div>
+        </div>
+        
+        <div style="text-align: center; padding: 30px; background: #f8f9fa;">
+            <h3 style="margin-bottom: 20px; color: #2c3e50;">Export Studio Financial Data</h3>
+            <button class="add-row-btn" onclick="exportToCSV()">📄 Export to CSV</button>
+            <button class="add-row-btn" onclick="printReport()">🖨️ Print Report</button>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://zgxzdmzbmaoqlkhiqhrq.supabase.co'
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpneHpkbXpibWFvcWxraGlxaHJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjM0NjEyMzcsImV4cCI6MjAzOTAzNzIzN30.hJ6VTZz1H_bZdNgJcpXGGOzwvf9Ht6TtGJ_2E8Rqb5k'
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+        
+        let currentUser = null, userRole = null, isReadOnly = false
+        
+        document.addEventListener('DOMContentLoaded', checkAuthState)
+        
+        async function checkAuthState() {
+            const { data: { session } } = await supabase.auth.getSession()
+            if (session) await handleAuthSuccess(session.user)
+            
+            supabase.auth.onAuthStateChange(async (event, session) => {
+                if (event === 'SIGNED_IN' && session) await handleAuthSuccess(session.user)
+                else if (event === 'SIGNED_OUT') handleSignOut()
+            })
+        }
+        
+        async function handleAuthSuccess(user) {
+            currentUser = user
+            const { data: userRoleData, error } = await supabase
+                .from('user_roles').select('role_name').eq('user_id', user.id).single()
+            
+            if (error) {
+                document.getElementById('errorMessage').textContent = 'Error: User not authorized.'
+                return
+            }
+            
+            userRole = userRoleData.role_name
+            isReadOnly = userRole === 'read_only'
+            
+            document.getElementById('authContainer').style.display = 'none'
+            document.getElementById('appContainer').style.display = 'block'
+            document.getElementById('userEmail').textContent = user.email
+            document.getElementById('userRole').textContent = userRole.toUpperCase()
+            document.getElementById('userRole').className = `role-badge ${userRole}`
+            
+            if (isReadOnly) {
+                document.getElementById('readonlyNotice').style.display = 'block'
+                document.querySelectorAll('.add-row-btn').forEach(btn => btn.style.display = 'none')
+            }
+            
+            await loadFinancialData()
+        }
+        
+        function handleSignOut() {
+            document.getElementById('authContainer').style.display = 'block'
+            document.getElementById('appContainer').style.display = 'none'
+        }
+        
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault()
+            const { error } = await supabase.auth.signInWithPassword({
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value
+            })
+            if (error) document.getElementById('errorMessage').textContent = error.message
+        })
+        
+        async function signOut() { await supabase.auth.signOut() }
+        
+        async function loadFinancialData() {
+            try {
+                const [capital, revenue, equipment, operational] = await Promise.all([
+                    supabase.from('investor_capital').select('*').order('date_invested', { ascending: false }),
+                    supabase.from('revenue').select('*').order('date', { ascending: false }),
+                    supabase.from('equipment_expenses').select('*').order('date', { ascending: false }),
+                    supabase.from('operational_expenses').select('*').order('date', { ascending: false })
+                ])
+                
+                if (capital.data) populateTable('capitalTable', capital.data, formatCapitalRow)
+                if (revenue.data) populateTable('revenueTable', revenue.data, formatRevenueRow)
+                if (equipment.data) populateTable('equipmentTable', equipment.data, formatEquipmentRow)
+                if (operational.data) populateTable('operationalTable', operational.data, formatOperationalRow)
+                
+                calculateTotals()
+            } catch (error) {
+                console.error('Error loading data:', error)
+            }
+        }
+        
+        function populateTable(tableId, data, formatter) {
+            const tbody = document.querySelector(`#${tableId} tbody`)
+            tbody.innerHTML = data.map(formatter).join('')
+        }
+        
+        function formatCapitalRow(row) {
+            return `<tr>
+                <td>${row.investor_name}</td>
+                <td>${row.date_invested}</td>
+                <td>₱${parseFloat(row.amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                <td>${row.payment_method}</td>
+                <td>${row.notes || ''}</td>
+                <td>${isReadOnly ? '-' : `<button class="delete-btn" onclick="deleteEntry('investor_capital', '${row.id}')">Delete</button>`}</td>
+            </tr>`
+        }
+        
+        function formatRevenueRow(row) {
+            return `<tr>
+                <td>${row.date}</td>
+                <td>${row.service_type}</td>
+                <td>${row.client_name}</td>
+                <td>${row.hours}</td>
+                <td>₱${parseFloat(row.rate).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                <td>₱${parseFloat(row.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                <td>${row.payment_status}</td>
+                <td>${isReadOnly ? '-' : `<button class="delete-btn" onclick="deleteEntry('revenue', '${row.id}')">Delete</button>`}</td>
+            </tr>`
+        }
+        
+        function formatEquipmentRow(row) {
+            return `<tr>
+                <td>${row.date}</td>
+                <td>${row.description}</td>
+                <td>${row.category}</td>
+                <td>${row.vendor}</td>
+                <td>₱${parseFloat(row.amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                <td>${row.warranty_period || ''}</td>
+                <td>${isReadOnly ? '-' : `<button class="delete-btn" onclick="deleteEntry('equipment_expenses', '${row.id}')">Delete</button>`}</td>
+            </tr>`
+        }
+        
+        function formatOperationalRow(row) {
+            return `<tr>
+                <td>${row.date}</td>
+                <td>${row.description}</td>
+                <td>${row.category}</td>
+                <td>₱${parseFloat(row.amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                <td>${row.frequency}</td>
+                <td>${row.due_date || ''}</td>
+                <td>${isReadOnly ? '-' : `<button class="delete-btn" onclick="deleteEntry('operational_expenses', '${row.id}')">Delete</button>`}</td>
+            </tr>`
+        }
+        
+        async function deleteEntry(table, id) {
+            if (isReadOnly || !confirm('Are you sure you want to delete this entry?')) return
+            const { error } = await supabase.from(table).delete().eq('id', id)
+            if (!error) await loadFinancialData()
+        }
+        
+        function calculateTotals() {
+            document.getElementById('totalPaidCapital').textContent = '₱0.00'
+            document.getElementById('totalRevenue').textContent = '₱0.00'
+            document.getElementById('totalExpenses').textContent = '₱0.00'
+            document.getElementById('cashOnHand').textContent = '₱0.00'
+            document.getElementById('businessReinvestment').textContent = '₱0.00'
+            document.getElementById('investorDistribution').textContent = '₱0.00'
+        }
+        
+        function showCapitalForm() { if (!isReadOnly) alert('Add Capital Form - To be implemented') }
+        function showRevenueForm() { if (!isReadOnly) alert('Add Revenue Form - To be implemented') }
+        function showEquipmentForm() { if (!isReadOnly) alert('Add Equipment Form - To be implemented') }
+        function showOperationalForm() { if (!isReadOnly) alert('Add Operational Form - To be implemented') }
+        function exportToCSV() { alert('Export CSV - To be implemented') }
+        function printReport() { window.print() }
+    </script>
+</body>
+</html>
